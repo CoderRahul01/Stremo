@@ -75,25 +75,48 @@ export default function LiveDashboard({ user }: LiveDashboardProps) {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Media devices not supported in this browser/context.");
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
-        audio: true 
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+
+      // Try to get both video and audio
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: isCamOn, 
+          audio: isMicOn 
+        });
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        return true;
+      } catch (innerErr: any) {
+        // If both failed, try just video if it was requested
+        if (isCamOn && isMicOn) {
+          console.warn("Failed to get both video and audio, trying video only...");
+          const videoOnlyStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          streamRef.current = videoOnlyStream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = videoOnlyStream;
+          }
+          setIsMicOn(false);
+          return true;
+        }
+        throw innerErr;
       }
-      return true;
     } catch (err: any) {
       console.error("Error accessing media devices:", err);
       const isInIframe = window.self !== window.top;
+      const isPermissionError = err.name === "NotAllowedError" || err.name === "PermissionDeniedError";
       
+      let errorMessage = "Camera denied. Using simulated stream for demo.";
+      if (isInIframe) {
+        errorMessage = "Camera blocked in preview. Opening in a new tab is required for real streaming.";
+      } else if (isPermissionError) {
+        errorMessage = "Permission denied. Please click the camera icon in your browser address bar to allow access.";
+      }
+
       setNotification({
         type: "error",
         userName: "System",
-        message: isInIframe 
-          ? "Camera blocked in preview. Opening in a new tab is required for real streaming."
-          : "Camera denied. Using simulated stream for demo."
+        message: errorMessage
       });
 
       if (isInIframe) {
@@ -105,7 +128,7 @@ export default function LiveDashboard({ user }: LiveDashboardProps) {
       }
       
       setTimeout(() => setNotification(null), 8000);
-      return !isInIframe; 
+      return false; 
     }
   };
 
@@ -157,8 +180,17 @@ export default function LiveDashboard({ user }: LiveDashboardProps) {
           userName: "System",
           message: "Screen sharing started!"
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error("Error starting screen share:", err);
+        const isPermissionError = err.name === "NotAllowedError" || err.name === "PermissionDeniedError";
+        
+        setNotification({
+          type: "error",
+          userName: "System",
+          message: isPermissionError 
+            ? "Screen share cancelled or denied." 
+            : "Failed to start screen share."
+        });
       }
     }
     setTimeout(() => setNotification(null), 3000);
