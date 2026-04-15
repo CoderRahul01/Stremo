@@ -1,0 +1,6 @@
+{
+  "name": "Stremo",
+  "description": "A high-performance, scalable streaming platform for creators with real-time chat, monetization, and interactive avatars.",
+  "requestFramePermissions": ["camera", "microphone", "display-capture"],
+  "majorCapabilities": ["streaming", "chat", "monetization"]
+}

@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "followersCount": { "type": "number" },
+        "followingCount": { "type": "number" },
+        "totalStreamHours": { "type": "number" },
+        "totalVideos": { "type": "number" },
+        "isMonetized": { "type": "boolean" },
+        "currentRole": { "type": "string", "enum": ["user", "streamer"] },
+        "role": { "type": "string", "enum": ["user", "admin"] }
+      },
+      "required": ["uid", "displayName"]
+    },
+    "Stream": {
+      "title": "Stream",
+      "description": "Live stream metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["live", "offline"] },
+        "viewerCount": { "type": "number" },
+        "likesCount": { "type": "number" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "thumbnailURL": { "type": "string" }
+      },
+      "required": ["id", "creatorId", "title", "status"]
+    },
+    "Donation": {
+      "title": "Donation",
+      "description": "Stream donation record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "streamId": { "type": "string" },
+        "donorId": { "type": "string" },
+        "donorName": { "type": "string" },
+        "amount": { "type": "number" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "streamId", "amount"]
+    },
+    "VOD": {
+      "title": "VOD",
+      "description": "Archived stream content",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "duration": { "type": "number" },
+        "views": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "thumbnailURL": { "type": "string" },
+        "videoURL": { "type": "string" }
+      },
+      "required": ["id", "creatorId", "title", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/streams/{streamId}": {
+      "schema": "Stream",
+      "description": "Active and past streams"
+    },
+    "/donations/{donationId}": {
+      "schema": "Donation",
+      "description": "Stream donations"
+    },
+    "/vods/{vodId}": {
+      "schema": "VOD",
+      "description": "Past broadcasts"
+    }
+  }
+}

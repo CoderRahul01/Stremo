@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, displayName, photoURL, bio, followersCount, followingCount, totalStreamHours, totalVideos, isMonetized, role
+    //
+    // Collection: streams
+    // Fields: id, creatorId, title, category, status, viewerCount, startedAt, thumbnailURL
+    //
+    // Collection: donations
+    // Fields: id, streamId, donorId, donorName, amount, message, timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "rahulpandey.creates@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() < 500)) &&
+             (!('role' in data) || data.role in ['user', 'admin']);
+    }
+
+    function isValidStream(data) {
+      return data.keys().hasAll(['id', 'creatorId', 'title', 'status']) &&
+             data.id is string && data.creatorId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.status in ['live', 'offline'];
+    }
+
+    function isValidDonation(data) {
+      return data.keys().hasAll(['id', 'streamId', 'amount']) &&
+             data.id is string && data.streamId is string &&
+             data.amount is number && data.amount > 0;
+    }
+
+    function isValidVOD(data) {
+      return data.keys().hasAll(['id', 'creatorId', 'title', 'createdAt']) &&
+             data.id is string && data.creatorId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
+    }
+
+    match /streams/{streamId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid && isValidStream(request.resource.data);
+      allow update: if (isAuthenticated() && resource.data.creatorId == request.auth.uid && isValidStream(request.resource.data)) || isAdmin();
+      allow delete: if (isAuthenticated() && resource.data.creatorId == request.auth.uid) || isAdmin();
+    }
+
+    match /vods/{vodId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid && isValidVOD(request.resource.data);
+      allow update: if (isAuthenticated() && resource.data.creatorId == request.auth.uid && isValidVOD(request.resource.data)) || isAdmin();
+      allow delete: if (isAuthenticated() && resource.data.creatorId == request.auth.uid) || isAdmin();
+    }
+
+    match /donations/{donationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidDonation(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+  }
+}
